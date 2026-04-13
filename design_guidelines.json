@@ -1,0 +1,74 @@
+{
+  "theme": "light",
+  "archetype": "4 (Swiss & High-Contrast) optimized for Utility/Game UI",
+  "colors": {
+    "background": "bg-slate-50",
+    "surface": "bg-white",
+    "primary": "bg-[#22c55e]",
+    "primary_hover": "hover:bg-[#16a34a]",
+    "primary_text": "text-white",
+    "text_main": "text-slate-900",
+    "text_muted": "text-slate-500",
+    "circle_bg": "bg-slate-200",
+    "circle_text": "text-slate-900",
+    "pangram_bg": "bg-green-100",
+    "pangram_text": "text-green-800",
+    "pangram_border": "border-green-300",
+    "border_light": "border-slate-200"
+  },
+  "typography": {
+    "font_family_heading": "Outfit, sans-serif",
+    "font_family_body": "Manrope, sans-serif",
+    "h1": "text-4xl sm:text-5xl font-black tracking-tighter text-slate-900",
+    "h2": "text-2xl sm:text-3xl font-bold tracking-tight text-slate-900",
+    "h3": "text-xl font-semibold tracking-tight text-slate-800",
+    "body": "text-base text-slate-700 leading-relaxed",
+    "letter_input": "text-3xl sm:text-4xl font-bold uppercase text-center focus:outline-none focus:ring-4 focus:ring-green-500/30"
+  },
+  "layout_and_spacing": {
+    "container": "max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 min-h-screen flex flex-col",
+    "main_grid": "grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-24 items-start flex-1 mt-8",
+    "left_col": "lg:col-span-5 flex flex-col items-center gap-10",
+    "right_col": "lg:col-span-7 flex flex-col gap-8 bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-100 min-h-[500px]",
+    "hexagon_container": "relative w-[300px] h-[300px] sm:w-[340px] sm:h-[340px] mx-auto",
+    "circle_base": "absolute w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center shadow-sm transition-all duration-200 focus-within:scale-110 focus-within:z-10",
+    "circle_center": "top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 z-10",
+    "circle_top": "top-[15%] left-[50%] -translate-x-1/2 -translate-y-1/2",
+    "circle_top_right": "top-[32.5%] left-[80.3%] -translate-x-1/2 -translate-y-1/2",
+    "circle_bottom_right": "top-[67.5%] left-[80.3%] -translate-x-1/2 -translate-y-1/2",
+    "circle_bottom": "top-[85%] left-[50%] -translate-x-1/2 -translate-y-1/2",
+    "circle_bottom_left": "top-[67.5%] left-[19.7%] -translate-x-1/2 -translate-y-1/2",
+    "circle_top_left": "top-[32.5%] left-[19.7%] -translate-x-1/2 -translate-y-1/2",
+    "results_group": "flex flex-col gap-4 mb-8",
+    "results_group_header": "flex items-center gap-3 border-b border-slate-100 pb-2",
+    "words_grid": "flex flex-wrap gap-2.5"
+  },
+  "components": {
+    "button": "w-full sm:w-auto px-10 py-4 rounded-full font-bold text-lg bg-[#22c55e] text-white transition-all duration-200 transform hover:-translate-y-1 hover:shadow-[0_8px_20px_rgba(34,197,94,0.3)] active:translate-y-0",
+    "word_badge": "px-4 py-2 rounded-lg text-[15px] font-medium border transition-colors cursor-default",
+    "word_badge_normal": "bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-300",
+    "word_badge_pangram": "bg-green-100 border-green-300 text-green-800 font-bold shadow-sm flex items-center gap-1.5"
+  },
+  "instructions_to_main_agent": [
+    "Build a responsive React application using pure HTML+Tailwind for the layout to ensure the creative hexagon styling works precisely.",
+    "Do NOT use 'Inter' for headings. Install and use 'Outfit' (headings) and 'Manrope' (body) via standard Google Fonts imports.",
+    "Implement the hexagonal layout using the exact classes provided in `layout_and_spacing`. The 7 inputs MUST be absolute positioned circles inside the `hexagon_container`.",
+    "The 7 circles should be `<input type='text' maxLength={1}>`. The center circle uses `bg-[#22c55e] text-white` (Primary Green). The outer 6 use `bg-slate-200 text-slate-900`. Force uppercase via CSS `uppercase`.",
+    "Create a dictionary processing logic: Fetch/Load the Portuguese dictionary, filter for words >= 4 letters, MUST contain the center letter, and ONLY contain letters from the 7 provided. (You can build a small utility function for this).",
+    "Display the results on the right column. Group them by length (e.g., '4 Letras', '5 Letras'). Within each group, display words in the flex-wrap `words_grid`.",
+    "Pangram logic: Check if a valid word contains all 7 unique letters. If yes, apply the `word_badge_pangram` classes to highlight it prominently.",
+    "Add a subtle CSS background pattern to the main body: `bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px]` to give it a premium tool vibe."
+  ],
+  "testing_attributes": {
+    "center_input": "data-testid='center-letter-input'",
+    "outer_input_prefix": "data-testid='outer-letter-input-'",
+    "generate_button": "data-testid='generate-words-button'",
+    "results_section": "data-testid='results-section'",
+    "word_item_prefix": "data-testid='word-'",
+    "pangram_item_prefix": "data-testid='pangram-word-'"
+  },
+  "media": {
+    "background_pattern": "CSS radial gradient applied to body",
+    "icons": "Use lucide-react for any UI adornments (e.g., a sparkle icon for pangrams, or a check icon for the generate button)."
+  }
+}
