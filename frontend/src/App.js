@@ -1,10 +1,6 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import "@/App.css";
-import axios from "axios";
-import { Sparkles, Search, RotateCcw, Hash } from "lucide-react";
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { Sparkles, Search, RotateCcw, Hash, Loader2 } from "lucide-react";
 
 function HexInput({ value, onChange, position, isCenter, testId }) {
   const inputRef = useRef(null);
@@ -79,15 +75,79 @@ function ResultsGroup({ length, words, index }) {
   );
 }
 
+// Strip accents: "ação" -> "acao"
+function stripAccents(s) {
+  return s.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function solveWords(dictionary, centerLetter, outerLetters) {
+  const center = stripAccents(centerLetter.toLowerCase());
+  const allowed = new Set(outerLetters.map((c) => stripAccents(c.toLowerCase())));
+  allowed.add(center);
+  const allSeven = new Set(allowed);
+
+  const groups = {};
+  let total = 0;
+  let pangramCount = 0;
+
+  for (const word of dictionary) {
+    const normalized = stripAccents(word.toLowerCase());
+    if (!normalized.includes(center)) continue;
+    let valid = true;
+    for (const c of normalized) {
+      if (!allowed.has(c)) { valid = false; break; }
+    }
+    if (!valid) continue;
+
+    const letters = new Set(normalized);
+    const isPangram = [...allSeven].every((l) => letters.has(l));
+    if (isPangram) pangramCount++;
+
+    const len = normalized.length;
+    if (!groups[len]) groups[len] = [];
+    groups[len].push({ word: word.toUpperCase(), is_pangram: isPangram });
+    total++;
+  }
+
+  // Sort groups by key and words alphabetically
+  const sortedGroups = {};
+  for (const k of Object.keys(groups).sort((a, b) => a - b)) {
+    sortedGroups[k] = groups[k].sort((a, b) =>
+      stripAccents(a.word).localeCompare(stripAccents(b.word))
+    );
+  }
+
+  return { total, pangram_count: pangramCount, groups: sortedGroups };
+}
+
 export default function App() {
   const [centerLetter, setCenterLetter] = useState("");
   const [outerLetters, setOuterLetters] = useState(["", "", "", "", "", ""]);
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [dictionary, setDictionary] = useState([]);
+  const [dictLoading, setDictLoading] = useState(true);
 
   const outerRefs = useRef([]);
-  const centerRef = useRef(null);
+
+  // Load dictionary once on mount
+  useEffect(() => {
+    fetch("/br-utf8.txt")
+      .then((res) => res.text())
+      .then((text) => {
+        const words = text
+          .split("\n")
+          .map((w) => w.trim())
+          .filter((w) => w.length >= 4 && /^[a-zA-ZÀ-ÿ]+$/.test(w));
+        setDictionary(words);
+        setDictLoading(false);
+      })
+      .catch(() => {
+        setError("Erro ao carregar dicionário.");
+        setDictLoading(false);
+      });
+  }, []);
 
   const positions = [
     "hex-top",
@@ -105,7 +165,6 @@ export default function App() {
       const updated = [...outerLetters];
       updated[index] = val;
       setOuterLetters(updated);
-      // Auto-focus next empty input
       if (val && index < 5) {
         const nextEmpty = updated.findIndex((l, i) => i > index && l === "");
         if (nextEmpty !== -1 && outerRefs.current[nextEmpty]) {
@@ -116,23 +175,17 @@ export default function App() {
     [outerLetters]
   );
 
-  const handleSolve = async () => {
-    if (!allFilled) return;
+  const handleSolve = () => {
+    if (!allFilled || dictionary.length === 0) return;
     setLoading(true);
     setError("");
     setResults(null);
-    try {
-      const resp = await axios.post(`${API}/solve`, {
-        center_letter: centerLetter,
-        outer_letters: outerLetters,
-      });
-      setResults(resp.data);
-    } catch (e) {
-      setError("Erro ao buscar palavras. Verifique as letras e tente novamente.");
-      console.error(e);
-    } finally {
+    // Use setTimeout to let the UI show loading state
+    setTimeout(() => {
+      const result = solveWords(dictionary, centerLetter, outerLetters);
+      setResults(result);
       setLoading(false);
-    }
+    }, 50);
   };
 
   const handleReset = () => {
@@ -163,7 +216,14 @@ export default function App() {
           className="mt-2 text-base text-slate-500"
           style={{ fontFamily: "Manrope, sans-serif" }}
         >
-          Encontre todas as palavras possíveis
+          {dictLoading ? (
+            <span className="flex items-center justify-center gap-2">
+              <Loader2 size={16} className="animate-spin" />
+              Carregando dicionário...
+            </span>
+          ) : (
+            `${dictionary.length.toLocaleString("pt-BR")} palavras carregadas`
+          )}
         </p>
       </header>
 
@@ -199,7 +259,7 @@ export default function App() {
               <button
                 className="btn-generate w-full flex items-center justify-center gap-2"
                 onClick={handleSolve}
-                disabled={!allFilled || loading}
+                disabled={!allFilled || loading || dictLoading}
                 data-testid="generate-words-button"
               >
                 {loading ? (
