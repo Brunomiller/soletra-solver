@@ -85,7 +85,8 @@
   background: #f8fafc;
   color: #334155;
   transition: all 0.15s ease;
-  cursor: default;
+  cursor: pointer;
+  user-select: none;
 }
 
 .word-badge:hover {
@@ -98,6 +99,21 @@
   color: #166534;
   font-weight: 700;
   box-shadow: 0 1px 3px rgba(34, 197, 94, 0.15);
+}
+
+.word-badge-selected {
+  background: #1e293b;
+  border-color: #1e293b;
+  color: white;
+  transform: scale(1.08);
+  box-shadow: 0 4px 12px rgba(30, 41, 59, 0.25);
+}
+
+.word-badge-pangram.word-badge-selected {
+  background: #166534;
+  border-color: #166534;
+  color: white;
+  box-shadow: 0 4px 12px rgba(22, 101, 52, 0.3);
 }
 
 /* Generate button */

@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import "@/App.css";
-import { Sparkles, Search, RotateCcw, Hash, Loader2 } from "lucide-react";
+import { Sparkles, Search, RotateCcw, Hash, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 
 function HexInput({ value, onChange, position, isCenter, testId }) {
   const inputRef = useRef(null);
@@ -33,12 +33,13 @@ function HexInput({ value, onChange, position, isCenter, testId }) {
   );
 }
 
-function WordBadge({ word, isPangram }) {
+function WordBadge({ word, isPangram, isSelected, onClick }) {
   const testId = isPangram ? `pangram-word-${word.toLowerCase()}` : `word-${word.toLowerCase()}`;
   return (
     <span
-      className={`word-badge ${isPangram ? "word-badge-pangram" : ""}`}
+      className={`word-badge ${isPangram ? "word-badge-pangram" : ""} ${isSelected ? "word-badge-selected" : ""}`}
       data-testid={testId}
+      onClick={onClick}
     >
       {isPangram && <Sparkles size={14} />}
       {word}
@@ -46,7 +47,7 @@ function WordBadge({ word, isPangram }) {
   );
 }
 
-function ResultsGroup({ length, words, index }) {
+function ResultsGroup({ length, words, index, selectedWord, onSelectWord }) {
   return (
     <div
       className="fade-in-up mb-6"
@@ -68,7 +69,13 @@ function ResultsGroup({ length, words, index }) {
       </div>
       <div className="flex flex-wrap gap-2.5">
         {words.map((w) => (
-          <WordBadge key={w.word} word={w.word} isPangram={w.is_pangram} />
+          <WordBadge
+            key={w.word}
+            word={w.word}
+            isPangram={w.is_pangram}
+            isSelected={selectedWord === w.word}
+            onClick={() => onSelectWord(w.word)}
+          />
         ))}
       </div>
     </div>
@@ -121,15 +128,54 @@ function solveWords(dictionary, centerLetter, outerLetters) {
 }
 
 export default function App() {
-  const [centerLetter, setCenterLetter] = useState("");
-  const [outerLetters, setOuterLetters] = useState(["", "", "", "", "", ""]);
+  const [centerLetter, setCenterLetter] = useState(() => localStorage.getItem("soletra_center") || "");
+  const [outerLetters, setOuterLetters] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("soletra_outer")) || ["", "", "", "", "", ""]; }
+    catch { return ["", "", "", "", "", ""]; }
+  });
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [dictionary, setDictionary] = useState([]);
   const [dictLoading, setDictLoading] = useState(true);
+  const [selectedWord, setSelectedWord] = useState(null);
 
   const outerRefs = useRef([]);
+
+  // Persist letters to localStorage
+  useEffect(() => { localStorage.setItem("soletra_center", centerLetter); }, [centerLetter]);
+  useEffect(() => { localStorage.setItem("soletra_outer", JSON.stringify(outerLetters)); }, [outerLetters]);
+
+  // Flat list of all words for navigation
+  const allWords = results
+    ? Object.values(results.groups).flat().map((w) => w.word)
+    : [];
+
+  const selectedIndex = selectedWord ? allWords.indexOf(selectedWord) : -1;
+
+  const navigateWord = useCallback((dir) => {
+    if (allWords.length === 0) return;
+    let next;
+    if (selectedIndex === -1) {
+      next = 0;
+    } else {
+      next = selectedIndex + dir;
+      if (next < 0) next = allWords.length - 1;
+      if (next >= allWords.length) next = 0;
+    }
+    setSelectedWord(allWords[next]);
+  }, [allWords, selectedIndex]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handler = (e) => {
+      if (!results) return;
+      if (e.key === "ArrowRight") { e.preventDefault(); navigateWord(1); }
+      if (e.key === "ArrowLeft") { e.preventDefault(); navigateWord(-1); }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [results, navigateWord]);
 
   // Load dictionary once on mount
   useEffect(() => {
@@ -180,7 +226,7 @@ export default function App() {
     setLoading(true);
     setError("");
     setResults(null);
-    // Use setTimeout to let the UI show loading state
+    setSelectedWord(null);
     setTimeout(() => {
       const result = solveWords(dictionary, centerLetter, outerLetters);
       setResults(result);
@@ -193,6 +239,9 @@ export default function App() {
     setOuterLetters(["", "", "", "", "", ""]);
     setResults(null);
     setError("");
+    setSelectedWord(null);
+    localStorage.removeItem("soletra_center");
+    localStorage.removeItem("soletra_outer");
   };
 
   return (
@@ -322,7 +371,7 @@ export default function App() {
 
             {results && (
               <div>
-                {/* Summary */}
+                {/* Summary + Navigation */}
                 <div
                   className="flex flex-wrap items-center gap-4 mb-8 pb-4 border-b border-slate-100"
                   data-testid="results-summary"
@@ -339,6 +388,27 @@ export default function App() {
                       {results.pangram_count} pangram{results.pangram_count !== 1 ? "s" : ""}
                     </div>
                   )}
+                  {results.total > 0 && (
+                    <div className="flex items-center gap-1 ml-auto" data-testid="word-navigator">
+                      <button
+                        className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
+                        onClick={() => navigateWord(-1)}
+                        data-testid="nav-prev-button"
+                      >
+                        <ChevronLeft size={16} className="text-slate-600" />
+                      </button>
+                      <span className="text-xs text-slate-400 font-medium min-w-[3rem] text-center">
+                        {selectedIndex >= 0 ? `${selectedIndex + 1}/${allWords.length}` : "—"}
+                      </span>
+                      <button
+                        className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
+                        onClick={() => navigateWord(1)}
+                        data-testid="nav-next-button"
+                      >
+                        <ChevronRight size={16} className="text-slate-600" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Grouped Words */}
@@ -353,6 +423,8 @@ export default function App() {
                       length={parseInt(len)}
                       words={words}
                       index={index}
+                      selectedWord={selectedWord}
+                      onSelectWord={(w) => setSelectedWord(w === selectedWord ? null : w)}
                     />
                   ))
                 )}
