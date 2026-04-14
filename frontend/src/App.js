@@ -85,7 +85,7 @@ function WordBadge({ word, isPangram, isSelected, category, mark, onClick, onMar
 }
 
 // ─── GapIndicator ──────────────────────────────────────────
-function GapIndicator({ state, onClick }) {
+function GapIndicator({ state, onClick, extraCount }) {
   const stateClass = state === 1 ? "gap-state-1" : state >= 2 ? "gap-state-2" : "";
 
   return (
@@ -95,6 +95,20 @@ function GapIndicator({ state, onClick }) {
       data-testid="gap-indicator"
     >
       {state >= 2 ? <Minus size={10} /> : <Plus size={10} />}
+      {state === 0 && extraCount > 0 && <span>{extraCount}</span>}
+    </button>
+  );
+}
+
+// Small gap between injected extras to open combos
+function MiniGap({ onClick }) {
+  return (
+    <button
+      className="gap-indicator gap-state-1"
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      data-testid="mini-gap-indicator"
+    >
+      <Plus size={10} />
     </button>
   );
 }
@@ -144,9 +158,16 @@ function ResultsGroup({
   const beforeState = gapStates[beforeKey] || 0;
 
   items.push(
-    <GapIndicator key={beforeKey} state={beforeState} onClick={() => onToggleGap(beforeKey)} />
+    <GapIndicator key={beforeKey} state={beforeState} onClick={() => onToggleGap(beforeKey)} extraCount={beforeFirst.length} />
   );
-  if (beforeState >= 1) beforeFirst.forEach((w) => items.push(renderExtra(w)));
+  if (beforeState >= 1) {
+    beforeFirst.forEach((w, ei) => {
+      items.push(renderExtra(w));
+      if (ei < beforeFirst.length - 1) {
+        items.push(<MiniGap key={`mg-before-${ei}`} onClick={() => onToggleGap(beforeKey)} />);
+      }
+    });
+  }
   if (beforeState >= 2) {
     const shown = new Set([...words.map((w) => norm(w.word)), ...beforeFirst.map((w) => norm(w.word))]);
     comboBeforeFirst.filter((c) => !shown.has(c)).slice(0, 200).forEach((c) =>
@@ -170,9 +191,16 @@ function ResultsGroup({
     const gapState = gapStates[gapKey] || 0;
 
     items.push(
-      <GapIndicator key={`g-${gapKey}`} state={gapState} onClick={() => onToggleGap(gapKey)} />
+      <GapIndicator key={`g-${gapKey}`} state={gapState} onClick={() => onToggleGap(gapKey)} extraCount={extraInGap.length} />
     );
-    if (gapState >= 1) extraInGap.forEach((e) => items.push(renderExtra(e)));
+    if (gapState >= 1) {
+      extraInGap.forEach((e, ei) => {
+        items.push(renderExtra(e));
+        if (ei < extraInGap.length - 1) {
+          items.push(<MiniGap key={`mg-${gapKey}-${ei}`} onClick={() => onToggleGap(gapKey)} />);
+        }
+      });
+    }
     if (gapState >= 2) {
       const shown = new Set([...words.map((x) => norm(x.word)), ...extraInGap.map((x) => norm(x.word))]);
       comboInGap.filter((c) => !shown.has(c)).slice(0, 200).forEach((c) =>
