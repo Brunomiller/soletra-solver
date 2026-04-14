@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import "@/App.css";
 import { Sparkles, Search, RotateCcw, Hash, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -147,9 +147,10 @@ export default function App() {
   useEffect(() => { localStorage.setItem("soletra_outer", JSON.stringify(outerLetters)); }, [outerLetters]);
 
   // Flat list of all words for navigation
-  const allWords = results
-    ? Object.values(results.groups).flat().map((w) => w.word)
-    : [];
+  const allWords = useMemo(() =>
+    results ? Object.values(results.groups).flat().map((w) => w.word) : [],
+    [results]
+  );
 
   const selectedIndex = selectedWord ? allWords.indexOf(selectedWord) : -1;
 
