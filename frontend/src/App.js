@@ -175,10 +175,11 @@ function ResultsGroup({
   if (beforeState >= 1) {
     beforeFirst.forEach((w, ei) => {
       items.push(renderExtra(w));
-      if (ei < beforeFirst.length - 1) {
-        items.push(<MiniGap key={`mg-before-${ei}`} onClick={() => onToggleGap(beforeKey)} />);
-      }
+      items.push(<MiniGap key={`mg-before-${ei}`} onClick={() => onToggleGap(beforeKey)} />);
     });
+    if (beforeFirst.length === 0) {
+      items.push(<MiniGap key={`mg-before-empty`} onClick={() => onToggleGap(beforeKey)} />);
+    }
   }
   if (beforeState >= 2) {
     const shown = new Set([...words.map((w) => norm(w.word)), ...beforeFirst.map((w) => norm(w.word))]);
@@ -208,10 +209,12 @@ function ResultsGroup({
     if (gapState >= 1) {
       extraInGap.forEach((e, ei) => {
         items.push(renderExtra(e));
-        if (ei < extraInGap.length - 1) {
-          items.push(<MiniGap key={`mg-${gapKey}-${ei}`} onClick={() => onToggleGap(gapKey)} />);
-        }
+        items.push(<MiniGap key={`mg-${gapKey}-${ei}`} onClick={() => onToggleGap(gapKey)} />);
       });
+      // If no extras, still show a mini gap for combos
+      if (extraInGap.length === 0) {
+        items.push(<MiniGap key={`mg-${gapKey}-empty`} onClick={() => onToggleGap(gapKey)} />);
+      }
     }
     if (gapState >= 2) {
       const shown = new Set([...words.map((x) => norm(x.word)), ...extraInGap.map((x) => norm(x.word))]);
