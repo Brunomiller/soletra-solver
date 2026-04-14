@@ -18,14 +18,26 @@ function storageKey(center, outer) {
   return `soletra_marks_${center}_${outer.join("")}`.toLowerCase();
 }
 
-// Generate all letter combos of given length using allowed letters, containing center
-function generateCombos(allowedArr, length, centerNorm) {
+// Generate combos ONLY within an alphabetical range (efficient pruning)
+function generateCombosInRange(allowedArr, length, centerNorm, lowerBound, upperBound) {
   const results = [];
+  const lastChar = allowedArr[allowedArr.length - 1];
+  const firstChar = allowedArr[0];
+
   const gen = (prefix) => {
-    if (prefix.length === length) {
-      if (prefix.includes(centerNorm)) results.push(prefix);
+    const pLen = prefix.length;
+    if (pLen === length) {
+      if (prefix.includes(centerNorm) && prefix > lowerBound && prefix < upperBound) {
+        results.push(prefix);
+      }
       return;
     }
+    // Prune: prefix + all max chars < lower → skip
+    const remaining = length - pLen;
+    if (prefix + lastChar.repeat(remaining) <= lowerBound) return;
+    // Prune: prefix + all min chars > upper → skip
+    if (prefix + firstChar.repeat(remaining) >= upperBound) return;
+
     for (const l of allowedArr) {
       gen(prefix + l);
     }
@@ -116,7 +128,7 @@ function MiniGap({ onClick }) {
 // ─── ResultsGroup with gaps ────────────────────────────────
 function ResultsGroup({
   length, words, index, selectedWord, onSelectWord, marks, onMark,
-  gapStates, onToggleGap, extraWordsForGroup, combosForGroup,
+  gapStates, onToggleGap, extraWordsForGroup, gapCombos,
 }) {
   // Build set of word indices that border an expanded gap → highlighted yellow
   const highlightedIndices = new Set();
@@ -153,9 +165,9 @@ function ResultsGroup({
 
   // Gap before first word
   const beforeFirst = extraWordsForGroup.filter((w) => norm(w.word) < norm(words[0]?.word || ""));
-  const comboBeforeFirst = combosForGroup.filter((c) => c < norm(words[0]?.word || ""));
   const beforeKey = `${length}_before`;
   const beforeState = gapStates[beforeKey] || 0;
+  const beforeCombos = gapCombos[beforeKey] || [];
 
   items.push(
     <GapIndicator key={beforeKey} state={beforeState} onClick={() => onToggleGap(beforeKey)} extraCount={beforeFirst.length} />
@@ -170,7 +182,7 @@ function ResultsGroup({
   }
   if (beforeState >= 2) {
     const shown = new Set([...words.map((w) => norm(w.word)), ...beforeFirst.map((w) => norm(w.word))]);
-    comboBeforeFirst.filter((c) => !shown.has(c)).slice(0, 200).forEach((c) =>
+    beforeCombos.filter((c) => !shown.has(c)).slice(0, 200).forEach((c) =>
       items.push(<span key={`c-${c}`} className="word-badge word-badge-combo">{c.toUpperCase()}</span>)
     );
   }
@@ -186,9 +198,9 @@ function ResultsGroup({
       const en = norm(e.word);
       return en > wNorm && en < nextNorm;
     });
-    const comboInGap = combosForGroup.filter((c) => c > wNorm && c < nextNorm);
     const gapKey = `${length}_${i}`;
     const gapState = gapStates[gapKey] || 0;
+    const gapComboList = gapCombos[gapKey] || [];
 
     items.push(
       <GapIndicator key={`g-${gapKey}`} state={gapState} onClick={() => onToggleGap(gapKey)} extraCount={extraInGap.length} />
@@ -203,7 +215,7 @@ function ResultsGroup({
     }
     if (gapState >= 2) {
       const shown = new Set([...words.map((x) => norm(x.word)), ...extraInGap.map((x) => norm(x.word))]);
-      comboInGap.filter((c) => !shown.has(c)).slice(0, 200).forEach((c) =>
+      gapComboList.filter((c) => !shown.has(c)).slice(0, 200).forEach((c) =>
         items.push(<span key={`c-${c}`} className="word-badge word-badge-combo">{c.toUpperCase()}</span>)
       );
     }
@@ -274,8 +286,8 @@ export default function App() {
   const [extraLoaded, setExtraLoaded] = useState(false);
 
   const [cleanResults, setCleanResults] = useState(null);
-  const [extraResults, setExtraResults] = useState({}); // grouped extra words per length
-  const [combosCache, setCombosCache] = useState({}); // combos per length
+  const [extraResults, setExtraResults] = useState({});
+  const [gapCombos, setGapCombos] = useState({}); // combos per gap key
   const [hasResults, setHasResults] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -403,7 +415,7 @@ export default function App() {
     setError("");
     setSelectedWord(null);
     setGapStates({});
-    setCombosCache({});
+    setGapCombos({});
     setExtraResults({});
 
     // Auto-load extra dict if not loaded
@@ -439,7 +451,7 @@ export default function App() {
     setOuterLetters(["", "", "", "", "", ""]);
     setCleanResults(null);
     setExtraResults({});
-    setCombosCache({});
+    setGapCombos({});
     setHasResults(false);
     setError("");
     setSelectedWord(null);
@@ -449,39 +461,47 @@ export default function App() {
     localStorage.removeItem("soletra_outer");
   };
 
-  // Generate combos for a specific length (cached)
-  const getCombosForLength = useCallback((len) => {
-    if (combosCache[len]) return combosCache[len];
-    if (!centerLetter || !allFilled) return [];
-    if (len > 6) return []; // too many combos for 7+ letters
+  // Compute combos for a gap based on its boundaries
+  const computeGapCombos = useCallback((gapKey, lowerBound, upperBound, len) => {
+    if (gapCombos[gapKey]) return;
+    if (!centerLetter || !allFilled) return;
 
     const allowedSet = new Set(outerLetters.map((c) => norm(c)));
     allowedSet.add(norm(centerLetter));
     const allowedArr = [...allowedSet].sort();
-    const combos = generateCombos(allowedArr, len, norm(centerLetter));
-    setCombosCache((prev) => ({ ...prev, [len]: combos }));
-    return combos;
-  }, [combosCache, centerLetter, outerLetters, allFilled]);
+    const combos = generateCombosInRange(allowedArr, len, norm(centerLetter), lowerBound, upperBound);
+    setGapCombos((prev) => ({ ...prev, [gapKey]: combos }));
+  }, [gapCombos, centerLetter, outerLetters, allFilled]);
 
   // Toggle a gap: 0 → 1 (extras), 1 → 2 (combos), 2 → 0
   const handleToggleGap = useCallback((gapKey) => {
     const current = gapStates[gapKey] || 0;
-    const len = parseInt(gapKey.split("_")[0]);
 
     if (current === 0) {
-      // Load extra dict if needed
-      if (!extraLoaded) {
-        loadExtraDict();
-      }
+      if (!extraLoaded) loadExtraDict();
       setGapStates((prev) => ({ ...prev, [gapKey]: 1 }));
     } else if (current === 1) {
-      // Generate combos for this length
-      getCombosForLength(len);
+      // Need to compute combos for this gap — find bounds from clean results
+      const len = parseInt(gapKey.split("_")[0]);
+      const part = gapKey.split("_")[1];
+      const groupWords = cleanResults?.groups[len] || [];
+      let lower, upper;
+
+      if (part === "before") {
+        lower = "";
+        upper = groupWords[0] ? norm(groupWords[0].word) : "\uffff";
+      } else {
+        const idx = parseInt(part);
+        lower = groupWords[idx] ? norm(groupWords[idx].word) : "";
+        upper = groupWords[idx + 1] ? norm(groupWords[idx + 1].word) : "\uffff";
+      }
+
+      computeGapCombos(gapKey, lower, upper, len);
       setGapStates((prev) => ({ ...prev, [gapKey]: 2 }));
     } else {
       setGapStates((prev) => ({ ...prev, [gapKey]: 0 }));
     }
-  }, [gapStates, extraLoaded, loadExtraDict, getCombosForLength]);
+  }, [gapStates, extraLoaded, loadExtraDict, computeGapCombos, cleanResults]);
 
   const markedCorrect = Object.values(marks).filter((m) => m === "correct").length;
   const markedWrong = Object.values(marks).filter((m) => m === "wrong").length;
@@ -595,7 +615,7 @@ export default function App() {
                       gapStates={gapStates}
                       onToggleGap={handleToggleGap}
                       extraWordsForGroup={extraResults[len] || []}
-                      combosForGroup={combosCache[parseInt(len)] || []}
+                      gapCombos={gapCombos}
                     />
                   ))
                 }
