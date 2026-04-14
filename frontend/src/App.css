@@ -116,7 +116,7 @@
   box-shadow: 0 4px 12px rgba(22, 101, 52, 0.3);
 }
 
-/* Extra words (from unfiltered dict) */
+/* Extra words (from unfiltered dict) - yellow */
 .word-badge-extra {
   background: #fef9c3;
   border-color: #fde047;
@@ -131,6 +131,63 @@
   background: #a16207;
   border-color: #a16207;
   color: white;
+}
+
+/* Highlighted (bordering an open gap) */
+.word-badge-highlighted {
+  background: #fef9c3;
+  border-color: #fde047;
+  color: #854d0e;
+}
+
+/* Combo words (all letter combinations) - orange */
+.word-badge-combo {
+  background: #ffedd5;
+  border-color: #fdba74;
+  color: #9a3412;
+  font-family: 'Manrope', monospace;
+  font-size: 0.8125rem;
+}
+
+.word-badge-combo:hover {
+  border-color: #fb923c;
+}
+
+/* Gap indicator between words */
+.gap-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 24px;
+  height: 28px;
+  padding: 0 4px;
+  border-radius: 6px;
+  border: 1px dashed #cbd5e1;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: #94a3b8;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.gap-indicator:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #64748b;
+}
+
+.gap-indicator.gap-state-1 {
+  background: #fefce8;
+  border-color: #fde047;
+  color: #a16207;
+}
+
+.gap-indicator.gap-state-2 {
+  background: #fff7ed;
+  border-color: #fdba74;
+  color: #c2410c;
 }
 
 /* Correct/wrong marks */
