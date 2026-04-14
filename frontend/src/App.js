@@ -85,9 +85,7 @@ function WordBadge({ word, isPangram, isSelected, category, mark, onClick, onMar
 }
 
 // ─── GapIndicator ──────────────────────────────────────────
-function GapIndicator({ state, onClick, extraCount, comboCount }) {
-  if (state === 0 && extraCount === 0) return null;
-
+function GapIndicator({ state, onClick }) {
   const stateClass = state === 1 ? "gap-state-1" : state >= 2 ? "gap-state-2" : "";
 
   return (
@@ -95,14 +93,8 @@ function GapIndicator({ state, onClick, extraCount, comboCount }) {
       className={`gap-indicator ${stateClass}`}
       onClick={(e) => { e.stopPropagation(); onClick(); }}
       data-testid="gap-indicator"
-      title={
-        state === 0 ? `+${extraCount} oculta${extraCount !== 1 ? "s" : ""}`
-        : state === 1 ? `Ver ${comboCount} combinações`
-        : "Fechar"
-      }
     >
       {state >= 2 ? <Minus size={10} /> : <Plus size={10} />}
-      {state === 0 && extraCount > 0 && <span>{extraCount}</span>}
     </button>
   );
 }
@@ -151,18 +143,15 @@ function ResultsGroup({
   const beforeKey = `${length}_before`;
   const beforeState = gapStates[beforeKey] || 0;
 
-  if (beforeFirst.length > 0) {
-    items.push(
-      <GapIndicator key={beforeKey} state={beforeState} onClick={() => onToggleGap(beforeKey)}
-        extraCount={beforeFirst.length} comboCount={comboBeforeFirst.length} />
+  items.push(
+    <GapIndicator key={beforeKey} state={beforeState} onClick={() => onToggleGap(beforeKey)} />
+  );
+  if (beforeState >= 1) beforeFirst.forEach((w) => items.push(renderExtra(w)));
+  if (beforeState >= 2) {
+    const shown = new Set([...words.map((w) => norm(w.word)), ...beforeFirst.map((w) => norm(w.word))]);
+    comboBeforeFirst.filter((c) => !shown.has(c)).slice(0, 200).forEach((c) =>
+      items.push(<span key={`c-${c}`} className="word-badge word-badge-combo">{c.toUpperCase()}</span>)
     );
-    if (beforeState >= 1) beforeFirst.forEach((w) => items.push(renderExtra(w)));
-    if (beforeState >= 2) {
-      const shown = new Set([...words.map((w) => norm(w.word)), ...beforeFirst.map((w) => norm(w.word))]);
-      comboBeforeFirst.filter((c) => !shown.has(c)).slice(0, 200).forEach((c) =>
-        items.push(<span key={`c-${c}`} className="word-badge word-badge-combo">{c.toUpperCase()}</span>)
-      );
-    }
   }
 
   words.forEach((w, i) => {
@@ -180,18 +169,15 @@ function ResultsGroup({
     const gapKey = `${length}_${i}`;
     const gapState = gapStates[gapKey] || 0;
 
-    if (extraInGap.length > 0 || comboInGap.length > 0) {
-      items.push(
-        <GapIndicator key={`g-${gapKey}`} state={gapState} onClick={() => onToggleGap(gapKey)}
-          extraCount={extraInGap.length} comboCount={comboInGap.length} />
+    items.push(
+      <GapIndicator key={`g-${gapKey}`} state={gapState} onClick={() => onToggleGap(gapKey)} />
+    );
+    if (gapState >= 1) extraInGap.forEach((e) => items.push(renderExtra(e)));
+    if (gapState >= 2) {
+      const shown = new Set([...words.map((x) => norm(x.word)), ...extraInGap.map((x) => norm(x.word))]);
+      comboInGap.filter((c) => !shown.has(c)).slice(0, 200).forEach((c) =>
+        items.push(<span key={`c-${c}`} className="word-badge word-badge-combo">{c.toUpperCase()}</span>)
       );
-      if (gapState >= 1) extraInGap.forEach((e) => items.push(renderExtra(e)));
-      if (gapState >= 2) {
-        const shown = new Set([...words.map((x) => norm(x.word)), ...extraInGap.map((x) => norm(x.word))]);
-        comboInGap.filter((c) => !shown.has(c)).slice(0, 200).forEach((c) =>
-          items.push(<span key={`c-${c}`} className="word-badge word-badge-combo">{c.toUpperCase()}</span>)
-        );
-      }
     }
   });
 
@@ -205,9 +191,6 @@ function ResultsGroup({
           {length} letras
         </h3>
         <span className="text-sm text-slate-400 font-medium">({words.length})</span>
-        {extraWordsForGroup.length > 0 && (
-          <span className="text-xs text-amber-500 font-medium">+{extraWordsForGroup.length} ocultas</span>
-        )}
       </div>
       <div className="flex flex-wrap gap-2 items-center">{items}</div>
     </div>
