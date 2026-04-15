@@ -421,9 +421,6 @@ export default function App() {
     setGapCombos({});
     setExtraResults({});
 
-    // Auto-load extra dict if not loaded
-    const extraPromise = !extraLoaded ? loadExtraDict() : Promise.resolve(extraDict);
-
     setTimeout(() => {
       const clean = solveWithDict(dictionary, centerLetter, outerLetters, "clean");
       const grouped = groupAndSort(clean);
@@ -431,12 +428,10 @@ export default function App() {
       setHasResults(true);
       setLoading(false);
 
-      // Solve extras once dict is ready
-      extraPromise.then((eDictWords) => {
-        const dict = eDictWords || extraDict;
-        if (dict.length === 0) return;
+      // If extra dict already loaded, solve extras too
+      if (extraDict.length > 0) {
         const cleanSet = new Set(clean.map((w) => norm(w.word)));
-        const extras = solveWithDict(dict, centerLetter, outerLetters, "extra")
+        const extras = solveWithDict(extraDict, centerLetter, outerLetters, "extra")
           .filter((w) => !cleanSet.has(norm(w.word)));
         const eg = {};
         for (const w of extras) {
@@ -445,7 +440,7 @@ export default function App() {
         }
         for (const k of Object.keys(eg)) eg[k].sort((a, b) => norm(a.word).localeCompare(norm(b.word)));
         setExtraResults(eg);
-      });
+      }
     }, 50);
   };
 
@@ -463,6 +458,24 @@ export default function App() {
     localStorage.removeItem("soletra_center");
     localStorage.removeItem("soletra_outer");
   };
+
+  // Load extra dicts on demand and solve
+  const handleLoadExtras = useCallback(() => {
+    if (extraLoaded) return;
+    loadExtraDict().then((words) => {
+      if (!words || words.length === 0 || !cleanResults) return;
+      const cleanSet = new Set(Object.values(cleanResults.groups).flat().map((w) => norm(w.word)));
+      const extras = solveWithDict(words, centerLetter, outerLetters, "extra")
+        .filter((w) => !cleanSet.has(norm(w.word)));
+      const eg = {};
+      for (const w of extras) {
+        if (!eg[w.length]) eg[w.length] = [];
+        eg[w.length].push(w);
+      }
+      for (const k of Object.keys(eg)) eg[k].sort((a, b) => norm(a.word).localeCompare(norm(b.word)));
+      setExtraResults(eg);
+    });
+  }, [extraLoaded, loadExtraDict, cleanResults, centerLetter, outerLetters]);
 
   // Compute combos for a gap based on its boundaries
   const computeGapCombos = useCallback((gapKey, lowerBound, upperBound, len) => {
@@ -545,6 +558,21 @@ export default function App() {
                 onClick={handleReset} data-testid="reset-button" style={{ fontFamily: "Manrope, sans-serif" }}>
                 <RotateCcw size={14} />Limpar tudo
               </button>
+              {hasResults && !extraLoaded && (
+                <button
+                  className="text-sm text-amber-600 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-4 py-2 rounded-full transition-colors flex items-center gap-1.5 font-medium"
+                  onClick={handleLoadExtras}
+                  data-testid="load-extras-button"
+                  style={{ fontFamily: "Manrope, sans-serif" }}
+                >
+                  <Plus size={14} />Carregar dicionários extras
+                </button>
+              )}
+              {extraLoaded && (
+                <span className="text-xs text-amber-500 font-medium" style={{ fontFamily: "Manrope, sans-serif" }}>
+                  +{extraDict.length.toLocaleString("pt-BR")} palavras extras carregadas
+                </span>
+              )}
             </div>
 
             {hasResults && (markedCorrect > 0 || markedWrong > 0) && (
