@@ -419,7 +419,6 @@ export default function App() {
     setSelectedWord(null);
     setGapStates({});
     setGapCombos({});
-    setExtraResults({});
 
     setTimeout(() => {
       const clean = solveWithDict(dictionary, centerLetter, outerLetters, "clean");
@@ -427,20 +426,7 @@ export default function App() {
       setCleanResults(grouped);
       setHasResults(true);
       setLoading(false);
-
-      // If extra dict already loaded, solve extras too
-      if (extraDict.length > 0) {
-        const cleanSet = new Set(clean.map((w) => norm(w.word)));
-        const extras = solveWithDict(extraDict, centerLetter, outerLetters, "extra")
-          .filter((w) => !cleanSet.has(norm(w.word)));
-        const eg = {};
-        for (const w of extras) {
-          if (!eg[w.length]) eg[w.length] = [];
-          eg[w.length].push(w);
-        }
-        for (const k of Object.keys(eg)) eg[k].sort((a, b) => norm(a.word).localeCompare(norm(b.word)));
-        setExtraResults(eg);
-      }
+      // extras are recomputed automatically by useEffect when cleanResults changes
     }, 50);
   };
 
@@ -457,25 +443,14 @@ export default function App() {
     setMarks({});
     localStorage.removeItem("soletra_center");
     localStorage.removeItem("soletra_outer");
+    // Note: extraDict stays loaded — no need to re-download
   };
 
-  // Load extra dicts on demand and solve
+  // Load extra dicts on demand (useEffect computes results automatically)
   const handleLoadExtras = useCallback(() => {
     if (extraLoaded) return;
-    loadExtraDict().then((words) => {
-      if (!words || words.length === 0 || !cleanResults) return;
-      const cleanSet = new Set(Object.values(cleanResults.groups).flat().map((w) => norm(w.word)));
-      const extras = solveWithDict(words, centerLetter, outerLetters, "extra")
-        .filter((w) => !cleanSet.has(norm(w.word)));
-      const eg = {};
-      for (const w of extras) {
-        if (!eg[w.length]) eg[w.length] = [];
-        eg[w.length].push(w);
-      }
-      for (const k of Object.keys(eg)) eg[k].sort((a, b) => norm(a.word).localeCompare(norm(b.word)));
-      setExtraResults(eg);
-    });
-  }, [extraLoaded, loadExtraDict, cleanResults, centerLetter, outerLetters]);
+    loadExtraDict();
+  }, [extraLoaded, loadExtraDict]);
 
   // Compute combos for a gap based on its boundaries
   const computeGapCombos = useCallback((gapKey, lowerBound, upperBound, len) => {
