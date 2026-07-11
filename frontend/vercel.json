@@ -1,5 +1,8 @@
 {
   "installCommand": "yarn install",
   "buildCommand": "yarn build",
-  "outputDirectory": "build"
+  "outputDirectory": "build",
+  "rewrites": [
+    { "source": "/api/soletra-oficial", "destination": "https://g1.globo.com/jogos/static/soletra.json" }
+  ]
 }

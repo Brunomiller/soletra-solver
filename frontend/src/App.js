@@ -3,6 +3,7 @@ import "@/App.css";
 import {
   Sparkles, Search, RotateCcw, Hash, Loader2,
   ChevronLeft, ChevronRight, Check, X, Plus, Minus,
+  Trophy, Download,
 } from "lucide-react";
 
 // ─── Helpers ───────────────────────────────────────────────
@@ -297,6 +298,9 @@ export default function App() {
   const [selectedWord, setSelectedWord] = useState(null);
   const [gapStates, setGapStates] = useState({});
   const [marks, setMarks] = useState({});
+  const [officialData, setOfficialData] = useState(null);
+  const [officialLoading, setOfficialLoading] = useState(false);
+  const [showOfficial, setShowOfficial] = useState(false);
 
   const outerRefs = useRef([]);
 
@@ -494,6 +498,45 @@ export default function App() {
     }
   }, [gapStates, extraLoaded, loadExtraDict, computeGapCombos, cleanResults]);
 
+  // Load official words from g1.globo.com
+  const handleLoadOfficial = useCallback(() => {
+    if (officialData || officialLoading) return;
+    setOfficialLoading(true);
+    setError("");
+
+    const tryFetch = async () => {
+      for (const url of ["/api/soletra-oficial", "/soletra-oficial.json"]) {
+        try {
+          const r = await fetch(url);
+          if (r.ok) {
+            const data = await r.json();
+            if (data && data.word_list) return data;
+          }
+        } catch { /* try next */ }
+      }
+      throw new Error("fail");
+    };
+
+    tryFetch()
+      .then((data) => {
+        setOfficialData(data);
+        setShowOfficial(true);
+        setError("");
+      })
+      .catch(() => setError("Erro ao carregar palavras oficiais."))
+      .finally(() => setOfficialLoading(false));
+  }, [officialData, officialLoading]);
+
+  // Auto-fill letters when official data loads
+  useEffect(() => {
+    if (!officialData) return;
+    const letters = officialData.letters;
+    if (letters && letters.length >= 7) {
+      setCenterLetter(letters[0].toUpperCase());
+      setOuterLetters([...letters].slice(1, 7).map((l) => l.toUpperCase()));
+    }
+  }, [officialData]);
+
   const markedCorrect = Object.values(marks).filter((m) => m === "correct").length;
   const markedWrong = Object.values(marks).filter((m) => m === "wrong").length;
 
@@ -547,6 +590,30 @@ export default function App() {
                 <span className="text-xs text-amber-500 font-medium" style={{ fontFamily: "Manrope, sans-serif" }}>
                   +{extraDict.length.toLocaleString("pt-BR")} palavras extras carregadas
                 </span>
+              )}
+              {/* Official words button */}
+              {!officialData && (
+                <button
+                  className="text-sm text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-4 py-2 rounded-full transition-colors flex items-center gap-1.5 font-medium"
+                  onClick={handleLoadOfficial}
+                  disabled={officialLoading}
+                  data-testid="load-official-button"
+                  style={{ fontFamily: "Manrope, sans-serif" }}
+                >
+                  {officialLoading ? <Loader2 size={14} className="animate-spin" /> : <Trophy size={14} />}
+                  {officialLoading ? "Carregando..." : "Palavras oficiais do dia"}
+                </button>
+              )}
+              {officialData && (
+                <button
+                  className="text-sm text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-4 py-2 rounded-full transition-colors flex items-center gap-1.5 font-medium"
+                  onClick={() => setShowOfficial(!showOfficial)}
+                  data-testid="toggle-official-button"
+                  style={{ fontFamily: "Manrope, sans-serif" }}
+                >
+                  <Trophy size={14} />
+                  {showOfficial ? "Ocultar oficiais" : `Ver oficiais (${officialData.word_count})`}
+                </button>
               )}
             </div>
 
@@ -628,6 +695,34 @@ export default function App() {
               </div>
             )}
           </div>
+
+          {/* Official words panel */}
+          {showOfficial && officialData && (
+            <div className="lg:col-span-12 results-panel p-6 sm:p-8 border-teal-200" data-testid="official-panel">
+              <div className="flex flex-wrap items-center gap-3 mb-6 pb-4 border-b border-teal-100">
+                <Trophy size={20} className="text-teal-600" />
+                <div className="text-xl font-bold text-slate-900" style={{ fontFamily: "Outfit, sans-serif" }}>
+                  Palavras Oficiais do Dia
+                </div>
+                <span className="text-sm text-slate-500">
+                  {officialData.word_count} palavras · {officialData.pangram_count} pangram{officialData.pangram_count !== 1 ? "s" : ""} · {officialData.total_score} pontos
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2.5">
+                {officialData.word_list.map((w) => (
+                  <span
+                    key={w.word}
+                    className={`word-badge ${w.pangram ? "word-badge-pangram" : ""}`}
+                    data-testid={`official-${w.word}`}
+                  >
+                    {w.pangram && <Sparkles size={14} />}
+                    {(w.label && w.label[0]) || w.word.toUpperCase()}
+                    <span className="text-xs opacity-50 ml-1">+{w.score}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>
