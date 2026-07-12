@@ -537,6 +537,18 @@ export default function App() {
     }
   }, [officialData]);
 
+  const officialGroups = useMemo(() => {
+    if (!officialData) return [];
+    const groups = {};
+    for (const w of officialData.word_list) {
+      const len = w.word.length;
+      (groups[len] = groups[len] || []).push(w);
+    }
+    return Object.entries(groups)
+      .sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
+      .map(([len, words]) => [len, words.sort((a, b) => a.word.localeCompare(b.word, "pt-BR"))]);
+  }, [officialData]);
+
   const markedCorrect = Object.values(marks).filter((m) => m === "correct").length;
   const markedWrong = Object.values(marks).filter((m) => m === "wrong").length;
 
@@ -708,17 +720,29 @@ export default function App() {
                   {officialData.word_count} palavras · {officialData.pangram_count} pangram{officialData.pangram_count !== 1 ? "s" : ""} · {officialData.total_score} pontos
                 </span>
               </div>
-              <div className="flex flex-wrap gap-2.5">
-                {officialData.word_list.map((w) => (
-                  <span
-                    key={w.word}
-                    className={`word-badge ${w.pangram ? "word-badge-pangram" : ""}`}
-                    data-testid={`official-${w.word}`}
-                  >
-                    {w.pangram && <Sparkles size={14} />}
-                    {(w.label && w.label[0]) || w.word.toUpperCase()}
-                    <span className="text-xs opacity-50 ml-1">+{w.score}</span>
-                  </span>
+              <div className="space-y-6">
+                {officialGroups.map(([len, words]) => (
+                  <div key={len} data-testid={`official-group-${len}`}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-sm font-bold text-teal-700" style={{ fontFamily: "Outfit, sans-serif" }}>
+                        {len} letras
+                      </span>
+                      <span className="text-xs text-slate-400">({words.length})</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2.5">
+                      {words.map((w) => (
+                        <span
+                          key={w.word}
+                          className={`word-badge ${w.pangram ? "word-badge-pangram" : ""}`}
+                          data-testid={`official-${w.word}`}
+                        >
+                          {w.pangram && <Sparkles size={14} />}
+                          {(w.label && w.label[0]) || w.word.toUpperCase()}
+                          <span className="text-xs opacity-50 ml-1">+{w.score}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
